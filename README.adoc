@@ -1,0 +1,158 @@
+= MCP Math Server
+v0.1.0
+:description: A high-performance stdio MCP server for mathematical expression evaluation.
+:icons: font
+:toc: macro
+:toc-title: Table of Contents
+:sectnums:
+
+image:https://img.shields.io/badge/Rust-2024-orange.svg[Rust Version]
+image:https://img.shields.io/badge/License-MIT-blue.svg[License]
+
+
+[cols="2,10",frame=none]
+|===
+|
+|An implementation of the **Model Context Protocol (MCP)** that gives AI agents a reliable mathematical expression evaluator. Built with Rust for speed, correctness, and a minimal footprint.
+
+Unlike using the LLM's own arithmetic, this server computes results **exactly** using a dedicated expression engine -- no hallucinated digits, no floating-point approximation surprises.
+|===
+
+toc::[]
+
+NOTE: This server uses **stdio** transport, which is the standard for local MCP servers launched directly by the AI client as a child process.
+
+== Why This Exists
+
+LLMs are notoriously unreliable for arithmetic: rounding errors, wrong operator precedence, silent mistakes on large numbers or complex expressions. This server offloads all calculations to a deterministic Rust engine.
+
+== Features
+
+* **Expression evaluation**: Arithmetic, powers, modulo, parentheses.
+* **27 built-in functions**: `sin`, `cos`, `tan`, `sqrt`, `log`, `abs`, `ceil`, `floor`, `round`, and more.
+* **Named variables**: Pass `x`, `y`, or any identifier alongside the expression.
+* **Built-in constants**: `pi` and `e` available out of the box.
+* **Compilation cache**: Repeated calls with the same expression are served from cache (~15–80 ns/eval).
+* **Structured logging**: Configurable via `MCP_MATH_LOG` environment variable, output on stderr (never pollutes the stdio transport).
+* **Minimal dependencies**: Only `serde_json`, `mathexpr`, and `tracing`. No async runtime needed.
+
+== Tool
+
+The server exposes a single tool:
+
+[cols="1,3"]
+|===
+| Tool | Description
+
+| `evaluate`
+| Parses and evaluates a mathematical expression string. Supports named variables passed as a JSON object.
+|===
+
+=== Example Calls
+
+Simple constant expression:
+[source,json]
+----
+{
+  "name": "evaluate",
+  "arguments": {
+    "expression": "2 * pi * 6371"
+  }
+}
+----
+
+With named variables:
+[source,json]
+----
+{
+  "name": "evaluate",
+  "arguments": {
+    "expression": "sqrt(x^2 + y^2)",
+    "vars": { "x": 3.0, "y": 4.0 }
+  }
+}
+----
+
+Result: `5.0`
+
+== Building
+
+Requires Rust 1.85+ (Edition 2024).
+
+[source,bash]
+----
+cargo build --release
+----
+
+The binary will be at `./target/release/mcp-math`.
+
+== Configuration
+
+[cols="1,3,1"]
+|===
+| Variable | Description | Default
+
+| `MCP_MATH_LOG`
+| Log level (`debug`, `info`, `warn`, `error`)
+| `info`
+|===
+
+Setting `MCP_MATH_LOG=debug` enables cache hit/miss traces and variable binding details -- useful during development.
+
+== Connecting to an AI Client
+
+Add the server to your MCP client configuration. Example for **LM Studio** (`mcp.json`):
+
+* **Location**:
+** Windows: `%APPDATA%\LM Studio\mcp.json`
+** macOS: `~/Library/Application Support/LM Studio/mcp.json`
+** Linux: `~/.config/lmstudio/mcp.json`
+
+[source,json]
+----
+{
+  "mcpServers": {
+    "math": {
+      "command": "/absolute/path/to/mcp-math"
+    }
+  }
+}
+----
+
+TIP: Use the **release build** in production. The debug build is significantly slower for expression compilation.
+
+== Project Structure
+
+[source]
+----
+mcp-math/
+├── Cargo.toml
+└── src/
+    ├── main.rs        # stdio loop, tracing init, request dispatch
+    ├── mcp.rs         # MCP method handlers (initialize, tools/list, tools/call)
+    ├── messages.rs    # JSON-RPC types and tool schema definition
+    ├── state.rs       # AppState with compiled expression cache
+    ├── error.rs       # AppError (Parse, Compile, Eval, Io, Json)
+    └── types/
+        └── mod.rs
+----
+
+== Known Limitations
+
+* **No variable type coercion**: All variables must be JSON numbers (`float`). Strings are silently ignored.
+* **Cache key includes variable names**: The same expression compiled with different variable sets creates separate cache entries. This is intentional for correctness.
+* **No JavaScript / symbolic math**: This is a numerical evaluator only. Symbolic derivation or simplification is out of scope.
+* **Single-threaded**: stdio transport is inherently sequential; one request is processed at a time.
+
+== License
+
+MIT License. See `LICENSE` for details. **Note:** Mentioning the author in credits is required for any redistribution.
+
+== AI Assistance Disclosure
+
+This project includes AI-assisted code and documentation.
+The maintainer reviews and tests changes, however the software is provided "as is" and may contain errors.
+Use at your own risk; validate in your environment before production use.
+
+---
+Created by DBuret. Part of the https://gitlab.com/dburet/pAItrimony[pAItrimony] services suite.
