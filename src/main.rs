@@ -1,35 +1,33 @@
 mod error;
-mod messages;
+mod handlers;
 mod mcp;
 mod state;
-mod types;
+use crate::handlers::messages::JsonRpcRequest;
+use crate::handlers::messages::tool_definition;
 
 use axum::{
+    Json, Router,
     extract::State,
     http::StatusCode,
     response::{
-        sse::{Event, KeepAlive, Sse},
         IntoResponse,
+        sse::{Event, KeepAlive, Sse},
     },
     routing::{get, post},
-    Json, Router,
 };
+use futures::stream::{self, Stream};
+use serde_json::Value;
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 use tokio::sync::broadcast;
-use futures::stream::{self, Stream};
-use tracing::{error, info};
 use tower_http::trace::TraceLayer;
-use serde_json::Value;
+use tracing::{error, info};
 
-use crate::messages::JsonRpcRequest;
 use crate::state::AppState;
 
 #[tokio::main]
 async fn main() {
-    let log_level = std::env::var("MCP_MATH_LOG").unwrap_or_else(|_| "info".into());
-    tracing_subscriber::fmt()
-        .with_env_filter(log_level)
-        .init();
+    let log_level = std::env::var("MCP_CALC_LOG").unwrap_or_else(|_| "info".into());
+    tracing_subscriber::fmt().with_env_filter(log_level).init();
 
     let (tx, _) = broadcast::channel(100);
     let state = Arc::new(AppState::new(tx));
@@ -41,7 +39,7 @@ async fn main() {
         .layer(TraceLayer::new_for_http())
         .with_state(state);
 
-    let port = std::env::var("MCP_MATH_PORT")
+    let port = std::env::var("MCP_CALC_PORT")
         .unwrap_or_else(|_| "3000".into())
         .parse::<u16>()
         .unwrap_or(3000);
@@ -94,9 +92,10 @@ async fn messages_handler(
 
         let result = match method.as_str() {
             "tools/list" => mcp::handle_list_tools_result(),
-            "tools/call" => {
-                mcp::handle_call_tool_result(payload.params, &mut state_clone.math_state.lock().await)
-            }
+            "tools/call" => mcp::handle_call_tool_result(
+                payload.params,
+                &mut *state_clone.math_state.lock().await,
+            ),
             "notifications/initialized" => {
                 info!("Client initialized");
                 return;

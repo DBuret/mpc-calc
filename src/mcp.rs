@@ -1,15 +1,15 @@
-use serde_json::Value;
-use mathexpr::Expression;
-use tracing::{debug, error, info};
 use crate::error::AppError;
-use crate::messages::tool_definition;
+use crate::handlers::messages::tool_definition;
 use crate::state::MathState;
+use mathexpr::Expression;
+use serde_json::Value;
+use tracing::{debug, error, info};
 
 pub fn handle_initialize_result() -> Value {
     serde_json::json!({
         "protocolVersion": "2024-11-05",
         "capabilities": { "tools": { "listChanged": false } },
-        "serverInfo": { "name": "mcp-math", "version": "0.1.0" }
+        "serverInfo": { "name": "mcp-calc", "version": "0.1.0" }
     })
 }
 
@@ -19,19 +19,20 @@ pub fn handle_list_tools_result() -> Value {
 
 pub fn handle_call_tool_result(params: Option<Value>, state: &mut MathState) -> Value {
     let result = (|| -> Result<f64, AppError> {
-        let p = params.as_ref()
-    .ok_or_else(|| AppError::Parse("missing params".into()))?;
+        let p = params
+            .as_ref()
+            .ok_or_else(|| AppError::Parse("missing params".into()))?;
 
-let expr_str = p["arguments"]["expression"]
-    .as_str()
-    .ok_or_else(|| AppError::Parse("missing 'expression' field".into()))?;
+        let expr_str = p["arguments"]["expression"]
+            .as_str()
+            .ok_or_else(|| AppError::Parse("missing 'expression' field".into()))?;
 
-if expr_str.trim().is_empty() {
-    return serde_json::json!({
-        "isError": true,
-        "content": [{ "type": "text", "text": "The 'expression' field is empty. Please provide a mathematical expression, e.g. '2+2' or 'sqrt(x^2+y^2)'." }]
-    });
-}
+        if expr_str.trim().is_empty() {
+            serde_json::json!({
+                 "isError": true,
+                 "content": [{ "type": "text", "text": "The 'expression' field is empty. Please provide a mathematical expression, e.g. '2+2' or 'sqrt(x^2+y^2)'." }]
+            });
+        }
         let vars_map = p["arguments"]["vars"].as_object();
         let mut pairs: Vec<(String, f64)> = match vars_map {
             Some(map) => map
@@ -75,14 +76,12 @@ if expr_str.trim().is_empty() {
         Err(e) => {
             error!(error = %e, "Evaluation failed");
             serde_json::json!({
-        "isError": true,
-        "content": [{ "type": "text", "text": error_guidance(&e) }]
-        })
-}
-
+            "isError": true,
+            "content": [{ "type": "text", "text": error_guidance(&e) }]
+            })
+        }
     }
 }
-
 
 fn error_guidance(e: &AppError) -> String {
     match e {

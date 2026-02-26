@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use tokio::sync::{broadcast, Mutex};
-use mathexpr::CompiledExpr;
+
+use mathexpr::Executable;
+pub type CompiledExpr = Executable;
 
 pub struct MathState {
     pub cache: HashMap<String, CompiledExpr>,

@@ -19,15 +19,15 @@ FROM scratch
 
 # --- LABEL OCI STANDARDS ---
 # Informations de base
-LABEL org.opencontainers.image.title="MCP Math Server"
-LABEL org.opencontainers.image.description="High-performance SSE MCP server for mathematical expression evaluation. Offloads arithmetic from LLMs to a deterministic Rust engine."
+LABEL org.opencontainers.image.title="MCP Calc Server"
+LABEL org.opencontainers.image.description="High-performance SSE MCP server for arithmetic expression evaluation. Offloads arithmetic from LLMs to a deterministic Rust engine."
 LABEL org.opencontainers.image.vendor="DBuret"
 LABEL org.opencontainers.image.authors="DBuret"
 
 # Liens et documentation
-LABEL org.opencontainers.image.url="https://github.com/DBuret/mcp-math"
-LABEL org.opencontainers.image.source="https://github.com/DBuret/mcp-math"
-LABEL org.opencontainers.image.documentation="https://github.com/DBuret/mcp-math/blob/main/README.adoc"
+LABEL org.opencontainers.image.url="https://github.com/DBuret/mcp-calc"
+LABEL org.opencontainers.image.source="https://github.com/DBuret/mcp-calc"
+LABEL org.opencontainers.image.documentation="https://github.com/DBuret/mcp-calc/blob/main/README.adoc"
 
 # Versioning (à mettre à jour à chaque release)
 LABEL org.opencontainers.image.version="0.1.0"
@@ -45,14 +45,14 @@ LABEL com.paitrimony.mcp.tools="evaluate"
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 # Binaire compilé statiquement
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/mcp-math /app/mcp-math
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/mcp-calc /app/mcp-calc
 
 # Variables d'environnement par défaut
-ENV MCP_MATH_LOG="info"
-ENV MCP_MATH_PORT="3000"
+ENV MCP_CALC_LOG="info"
+ENV MCP_CALC_PORT="3000"
 
 WORKDIR /app
 EXPOSE 3000
 USER 1000
 
-ENTRYPOINT ["/app/mcp-math"]
+ENTRYPOINT ["/app/mcp-calc"]
